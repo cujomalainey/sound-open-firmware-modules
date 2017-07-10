@@ -13,9 +13,6 @@ extern "C" {
 #include <stddef.h>
 #include <math.h>
 
-#ifndef __BIONIC__
-#include <ieee754.h>
-#else
 union ieee754_float
 {
 	float f;
@@ -27,7 +24,6 @@ union ieee754_float
 		unsigned int negative:1;
 	} ieee;
 };
-#endif
 
 /* Uncomment to use the slow but accurate functions. */
 /* #define SLOW_DB_TO_LINEAR */
