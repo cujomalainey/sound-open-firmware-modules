@@ -8,7 +8,6 @@
  * found in the LICENSE.WEBKIT file.
  */
 
-#include <assert.h>
 #include <stdlib.h>
 
 #include <reef/audio/drc.h>
@@ -72,14 +71,14 @@ static void free_data_buffer(struct drc *drc)
 
 void drc_set_param(struct drc *drc, int index, unsigned paramID, float value)
 {
-	assert(paramID < PARAM_LAST);
+	// assert(paramID < PARAM_LAST);
 	if (paramID < PARAM_LAST)
 		drc->parameters[index][paramID] = value;
 }
 
 static float drc_get_param(struct drc *drc, int index, unsigned paramID)
 {
-	assert(paramID < PARAM_LAST);
+	// assert(paramID < PARAM_LAST);
 	return drc->parameters[index][paramID];
 }
 
