@@ -9,7 +9,13 @@ libaudio_a_SOURCES = \
 	host.c \
 	pipeline.c \
 	pipeline_static.c \
-	component.c
+	component.c \
+	biquad.c \
+	crossover2.c \
+	drc.c \
+	drc_kernel.c \
+	drc_math.c \
+	eq2.c
 
 libaudio_a_CFLAGS = \
 	$(ARCH_CFLAGS) \
