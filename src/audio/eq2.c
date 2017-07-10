@@ -4,7 +4,7 @@
  */
 
 #include <stdlib.h>
-#include "eq2.h"
+#include <reef/audio/eq2.h>
 
 struct eq2 {
 	int n[2];

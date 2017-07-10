@@ -12,8 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "drc_math.h"
-#include "drc_kernel.h"
+#include <reef/audio/drc_math.h>
+#include <reef/audio/drc_kernel.h>
 
 #define MAX_PRE_DELAY_FRAMES 1024
 #define MAX_PRE_DELAY_FRAMES_MASK (MAX_PRE_DELAY_FRAMES - 1)

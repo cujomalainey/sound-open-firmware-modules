@@ -9,7 +9,7 @@
  */
 
 #include <math.h>
-#include "biquad.h"
+#include <reef/audio/biquad.h>
 
 #ifndef max
 #define max(a, b) ({ __typeof__(a) _a = (a);	\

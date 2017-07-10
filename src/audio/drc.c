@@ -11,8 +11,8 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "drc.h"
-#include "drc_math.h"
+#include <reef/audio/drc.h>
+#include <reef/audio/drc_math.h>
 
 static void set_default_parameters(struct drc *drc);
 static void init_data_buffer(struct drc *drc);

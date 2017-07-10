@@ -4,8 +4,8 @@
  */
 
 #include <string.h>
-#include "crossover2.h"
-#include "biquad.h"
+#include <reef/audio/crossover2.h>
+#include <reef/audio/biquad.h>
 
 static void lr42_set(struct lr42 *lr42, enum biquad_type type, float freq)
 {
