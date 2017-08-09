@@ -54,30 +54,49 @@
 #include <reef/audio/component.h>
 #include <reef/audio/pipeline.h>
 #include <uapi/ipc.h>
+#include <reef/ring_buffer.h>
 #include <reef/intel-ipc.h>
 #include <config.h>
 
 #define iGS(x) (x >> SOF_GLB_TYPE_SHIFT)
 #define iCS(x) (x >> SOF_CMD_TYPE_SHIFT)
 
+#define DEBUG_BUFFER_SIZE (4*GDB_MSG_BUFFER_SIZE)
+
 /* IPC context - shared with platform IPC driver */
 struct ipc *_ipc;
+CIRCBUF_DEF(gdb_buffer_rx, DEBUG_BUFFER_SIZE);
+CIRCBUF_DEF(gdb_buffer_tx, DEBUG_BUFFER_SIZE);
+
+void print_ipc(void)
+{
+	void* p = NULL;
+	trace_ipc("TT0");
+  	trace_value((int)&p);
+	trace_value((int)_ipc); // WHY IS THIS POINTER CHANGING??!?!?!?!?!?!??!?!
+	trace_value((int)&_ipc);
+	trace_value(_ipc->host_pending);
+}
 
 static inline struct sof_ipc_hdr *mailbox_validate(void)
 {
 	struct sof_ipc_hdr *hdr = _ipc->comp_data;
-
+	trace_ipc("ABC");
 	/* read component values from the inbox */
 	mailbox_inbox_read(hdr, 0, sizeof(*hdr));
-
+	trace_ipc("ABB");
 	/* validate component header */
 	if (hdr->size > SOF_IPC_MSG_MAX_SIZE) {
 		trace_ipc_error("ebg");
 		return NULL;
 	}
-
+	trace_ipc("ABA");
 	/* read rest of component data */
+	trace_value(hdr->cmd);
+	trace_value(hdr->size);
+	trace_value(hdr->size - sizeof(*hdr));
 	mailbox_inbox_read(hdr + 1, sizeof(*hdr), hdr->size - sizeof(*hdr));
+	trace_ipc("ABZ");
 	return hdr;
 }
 
@@ -477,7 +496,7 @@ static int ipc_comp_get_value(uint32_t header, uint32_t cmd)
 	stream_dev = ipc_get_comp(_ipc, values->comp_id);
 	if (stream_dev == NULL)
 		return -ENODEV;
-	
+
 	/* get component values */
 	ret = comp_cmd(stream_dev->cd, COMP_CMD_VOLUME, values);
 	if (ret < 0)
@@ -618,6 +637,77 @@ static int ipc_glb_tplg_message(uint32_t header)
 	}
 }
 
+int ipc_gdb_copy_to_buffer(uint32_t header)
+{
+	struct sof_ipc_gdb_dsp_msg *ipc_gdb = _ipc->comp_data;
+
+	trace_ipc("YDS");
+	for (int i = 0; i < ipc_gdb->len; i++)
+	{
+		if (circ_buf_push(&gdb_buffer_rx, ipc_gdb->data[i]) < 0)
+		{
+			// buffer overfilled, trace and move on
+			trace_ipc_error("eGf");
+			return -ENOBUFS;
+		}
+	}
+	return 0;
+}
+
+void flush_buffer()
+{
+	struct sof_ipc_gdb_dsp_msg ipc_gdb;
+	for(int i = 0; i < DEBUG_BUFFER_SIZE/GDB_MSG_BUFFER_SIZE; i++)
+	{
+		int full_msg = 1;
+		for (int j = 0; j < GDB_MSG_BUFFER_SIZE; j++)
+		{
+			uint8_t data;
+			if (circ_buf_pop(&gdb_buffer_tx, &data) < 0)
+			{
+				// buffer is empty, flag and move on
+				full_msg = 0;
+				break;
+			}
+			ipc_gdb.data[j] = data;
+		}
+		if (ipc_queue_host_message(_ipc, SOF_IPC_GDB, &ipc_gdb,
+			sizeof(ipc_gdb), NULL, 0, NULL, NULL) < 0)
+		{
+			// queue might be full, process it and try again
+			ipc_process_msg_queue();
+			ipc_queue_host_message(_ipc, SOF_IPC_GDB, &ipc_gdb,
+				sizeof(ipc_gdb), NULL, 0, NULL, NULL);
+		}
+		if (!full_msg)
+		{
+			// nothing left in the buffer
+			break;
+		}
+	}
+}
+
+extern void irq_handler(void *arg);
+
+int getDebugChar(void)
+{
+	uint8_t data;
+	print_ipc();
+	while(circ_buf_pop(&gdb_buffer_rx, &data))
+	{
+		irq_handler(NULL);
+		ipc_process_msg_queue();
+	}
+	return data;
+}	/* read and return a single char */
+
+void putDebugChar(char c)
+{
+	if(circ_buf_push(&gdb_buffer_tx, c))
+		flush_buffer();
+	circ_buf_push(&gdb_buffer_tx, c);
+}
+
 /*
  * Global IPC Operations.
  */
@@ -626,8 +716,9 @@ int ipc_cmd(void)
 {
 	struct sof_ipc_hdr *hdr;
 	uint32_t type;
-
+	trace_ipc("BLD");
 	hdr = mailbox_validate();
+	trace_ipc("BLC");
 	if (hdr == NULL) {
 		trace_ipc_error("hdr");
 		return -EINVAL;
@@ -648,11 +739,14 @@ int ipc_cmd(void)
 		return ipc_glb_comp_message(hdr->cmd);
 	case iGS(SOF_IPC_GLB_STREAM_MSG):
 		return ipc_glb_stream_message(hdr->cmd);
+	case iGS(SOF_IPC_GDB):
+		return ipc_gdb_copy_to_buffer(hdr->cmd);
 	default:
 		trace_ipc_error("eGc");
 		trace_value(type);
 		return -EINVAL;
 	}
+	trace_ipc("BLB");
 }
 
 /* locks held by caller */

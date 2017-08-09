@@ -1,7 +1,7 @@
 noinst_LIBRARIES = libtasks.a
 
 libtasks_a_SOURCES = \
-	audio.c
+  audio.c
 
 libtasks_a_CFLAGS = \
 	$(ARCH_CFLAGS) \

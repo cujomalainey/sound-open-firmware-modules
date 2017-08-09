@@ -28,58 +28,58 @@
 
 #if XCHAL_HAVE_EXCEPTIONS
 
-	// Vector code
-	.section		.UserExceptionVector.text, "ax"
-	.align 4
-	.global _UserExceptionVector
-_UserExceptionVector:
-# if (((XSHAL_USER_VECTOR_SIZE >= 28) && XCHAL_HAVE_ADDX) || (XSHAL_USER_VECTOR_SIZE >= 36) || XSHAL_VECTORS_PACKED) && !((XSHAL_USER_VECTOR_SIZE < 30) && XCHAL_ERRATUM_453)
-	//  There is space to dispatch right at the vector:
+// 	// Vector code
+// 	.section		.UserExceptionVector.text, "ax"
+// 	.align 4
+// 	.global _UserExceptionVector
+// _UserExceptionVector:
+// # if (((XSHAL_USER_VECTOR_SIZE >= 28) && XCHAL_HAVE_ADDX) || (XSHAL_USER_VECTOR_SIZE >= 36) || XSHAL_VECTORS_PACKED) && !((XSHAL_USER_VECTOR_SIZE < 30) && XCHAL_ERRATUM_453)
+// 	//  There is space to dispatch right at the vector:
 
-	isync_erratum453
-	addi	a1, a1, -ESF_TOTALSIZE	// allocate exception stack frame, etc.
-	s32i	a2, a1, UEXC_a2
-	s32i	a3, a1, UEXC_a3
-	movi	a3, _xtos_exc_handler_table
-	rsr	a2, EXCCAUSE		// get exception cause
-	//interlock
-	addx4	a3, a2, a3
-	l32i	a3, a3, 0
-	s32i	a4, a1, UEXC_a4
-	jx	a3			// jump to cause-specific handler
+// 	isync_erratum453
+// 	addi	a1, a1, -ESF_TOTALSIZE	// allocate exception stack frame, etc.
+// 	s32i	a2, a1, UEXC_a2
+// 	s32i	a3, a1, UEXC_a3
+// 	movi	a3, _xtos_exc_handler_table
+// 	rsr	a2, EXCCAUSE		// get exception cause
+// 	//interlock
+// 	addx4	a3, a2, a3
+// 	l32i	a3, a3, 0
+// 	s32i	a4, a1, UEXC_a4
+// 	jx	a3			// jump to cause-specific handler
 
-	.size	_UserExceptionVector, . - _UserExceptionVector
+// 	.size	_UserExceptionVector, . - _UserExceptionVector
 
-# else
-	//  The vector may be as small as 12 bytes:
+// # else
+// 	//  The vector may be as small as 12 bytes:
 
-	addi	a1, a1, -ESF_TOTALSIZE		// allocate exception stack frame, etc.
-	s32i	a2, a1, UEXC_a2
-	movi	a2, _UserExceptionFromVector	// load user exception handler address
-	//interlock
-	jx	a2				// jump to handler
+// 	addi	a1, a1, -ESF_TOTALSIZE		// allocate exception stack frame, etc.
+// 	s32i	a2, a1, UEXC_a2
+// 	movi	a2, _UserExceptionFromVector	// load user exception handler address
+// 	//interlock
+// 	jx	a2				// jump to handler
 
-	.size	_UserExceptionVector, . - _UserExceptionVector
+// 	.size	_UserExceptionVector, . - _UserExceptionVector
 
-	//  Dispatch outside vector:
-	.text
-	//.subsection 2
-	.align	4
-	.global	_UserExceptionFromVector
-_UserExceptionFromVector:
+// 	//  Dispatch outside vector:
+// 	.text
+// 	//.subsection 2
+// 	.align	4
+// 	.global	_UserExceptionFromVector
+// _UserExceptionFromVector:
 
-	isync_erratum453
-	s32i	a3, a1, UEXC_a3
-	movi	a3, _xtos_exc_handler_table
-	rsr	a2, EXCCAUSE		// get exception cause
-	s32i	a4, a1, UEXC_a4
-	addx4	a3, a2, a3
-	l32i	a3, a3, 0
-	jx	a3			// jump to cause-specific handler
+// 	isync_erratum453
+// 	s32i	a3, a1, UEXC_a3
+// 	movi	a3, _xtos_exc_handler_table
+// 	rsr	a2, EXCCAUSE		// get exception cause
+// 	s32i	a4, a1, UEXC_a4
+// 	addx4	a3, a2, a3
+// 	l32i	a3, a3, 0
+// 	jx	a3			// jump to cause-specific handler
 
-	.size	_UserExceptionFromVector, . - _UserExceptionFromVector
+// 	.size	_UserExceptionFromVector, . - _UserExceptionFromVector
 
-# endif /*XEA2*/
+// # endif /*XEA2*/
 
 
 	.weak	_xtos_cause3_handler

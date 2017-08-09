@@ -24,4 +24,5 @@ noinst_HEADERS = \
 	timer.h \
 	trace.h \
 	wait.h \
-	work.h
+	work.h \
+	ring_buffer.h

@@ -33,7 +33,10 @@ reef_SOURCES = \
 	init.c \
 	wait.S \
 	timer.c \
-	task.c
+	task.c \
+	xtensa-stub.c \
+	gdbstub-entry.S \
+  gdbstub-fault_handler.S
 
 reef_CFLAGS = \
 	$(ARCH_INCDIR) \

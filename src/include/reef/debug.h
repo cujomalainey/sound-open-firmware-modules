@@ -154,3 +154,6 @@
 	} while (0);
 
 #endif
+
+void init_gdbstub(void);
+void breakpoint();

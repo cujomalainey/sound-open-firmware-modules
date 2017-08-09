@@ -62,6 +62,7 @@
 #define SOF_IPC_GLB_COMP_MSG			SOF_GLB_TYPE(0x5U)
 #define SOF_IPC_GLB_STREAM_MSG			SOF_GLB_TYPE(0x6U)
 #define SOF_IPC_FW_READY			SOF_GLB_TYPE(0x7U)
+#define SOF_IPC_GDB				SOF_GLB_TYPE(0x8U)
 
 /*
  * DSP Command Message Types
@@ -571,7 +572,7 @@ struct sof_ipc_comp_reply {
 /* new pipeline - SOF_IPC_TPLG_PIPE_NEW */
 struct sof_ipc_pipe_new {
 	struct sof_ipc_hdr hdr;
-	uint32_t comp_id;	/* component at start of pipeline */ 
+	uint32_t comp_id;	/* component at start of pipeline */
 	uint32_t pipeline_id;
 	uint32_t core;		/* core we run on */
 	uint32_t deadline;	/* execution completion deadline in us*/
@@ -609,6 +610,18 @@ struct sof_ipc_pipe_pipe_connect {
 	uint32_t pipeline_sink_id;
 	uint32_t comp_sink_id;
 }  __attribute__((packed));
+
+/*
+ * GDB
+ */
+
+#define GDB_MSG_BUFFER_SIZE 16
+
+struct sof_ipc_gdb_dsp_msg {
+	struct sof_ipc_hdr hdr;
+	uint8_t len;
+	unsigned char data[GDB_MSG_BUFFER_SIZE];
+} __attribute__((packed));
 
 
 /*

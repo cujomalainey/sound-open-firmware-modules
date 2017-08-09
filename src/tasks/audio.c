@@ -49,7 +49,7 @@
 struct audio_data {
 	struct pipeline *p;
 };
-
+extern void print_ipc();
 int do_task(struct reef *reef)
 {
 #ifdef STATIC_PIPE
@@ -63,10 +63,10 @@ int do_task(struct reef *reef)
 	sys_comp_mux_init();
 	sys_comp_switch_init();
 	sys_comp_volume_init();
-        sys_comp_src_init();
-        sys_comp_tone_init();
-        sys_comp_eq_iir_init();
-        sys_comp_eq_fir_init();
+	sys_comp_src_init();
+	sys_comp_tone_init();
+	sys_comp_eq_iir_init();
+	sys_comp_eq_fir_init();
 
 #if STATIC_PIPE
 	/* init static pipeline */
@@ -76,7 +76,10 @@ int do_task(struct reef *reef)
 #endif
 	/* let host know DSP boot is complete */
 	platform_boot_complete(0);
-
+	print_ipc();
+	init_gdbstub();
+	print_ipc();
+	breakpoint();
 	/* main audio IPC processing loop */
 	while (1) {
 

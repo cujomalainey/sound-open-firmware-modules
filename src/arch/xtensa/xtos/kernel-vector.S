@@ -39,41 +39,41 @@
  *  example of how to implement such a kernel vector handler.
  */
 
-#include <xtensa/coreasm.h>
-#include <xtensa/config/system.h>
-#ifdef SIMULATOR
-#include <xtensa/simcall.h>
-#endif
+// #include <xtensa/coreasm.h>
+// #include <xtensa/config/system.h>
+// #ifdef SIMULATOR
+// #include <xtensa/simcall.h>
+// #endif
 
-#if XCHAL_HAVE_EXCEPTIONS
+// #if XCHAL_HAVE_EXCEPTIONS
 
-	.begin	literal_prefix	.KernelExceptionVector
-	.section		.KernelExceptionVector.text, "ax"
+// 	.begin	literal_prefix	.KernelExceptionVector
+// 	.section		.KernelExceptionVector.text, "ax"
 
-	.align 4
-	.global _KernelExceptionVector
-_KernelExceptionVector:
+// 	.align 4
+// 	.global _KernelExceptionVector
+// _KernelExceptionVector:
 
-	// NOTE: this macro is required to work around hw erratum 453. If you are writing
-	// your own kernel exception handler then you must add this macro to your handler.
-	// If your hardware is not affected by this erratum, the macro will do nothing.
+// 	// NOTE: this macro is required to work around hw erratum 453. If you are writing
+// 	// your own kernel exception handler then you must add this macro to your handler.
+// 	// If your hardware is not affected by this erratum, the macro will do nothing.
 
-	isync_erratum453
+// 	isync_erratum453
 
-# if XCHAL_HAVE_DEBUG
-1:	break	1,0			// unexpected kernel exception
-# elif defined(SIMULATOR)
-	wsr	a2, EXCSAVE1		// save a2 where simulator expects it
-	movi	a2, SYS_unhandled_kernel_exc
-1:	simcall				// let simulator/debugger report unhandled exception
-# else
-1:
-# endif
-	j	1b			// infinite loop - unexpected kernel exception
+// # if XCHAL_HAVE_DEBUG
+// 1:	break	1,0			// unexpected kernel exception
+// # elif defined(SIMULATOR)
+// 	wsr	a2, EXCSAVE1		// save a2 where simulator expects it
+// 	movi	a2, SYS_unhandled_kernel_exc
+// 1:	simcall				// let simulator/debugger report unhandled exception
+// # else
+// 1:
+// # endif
+// 	j	1b			// infinite loop - unexpected kernel exception
 
-	.size	_KernelExceptionVector, . - _KernelExceptionVector
-	.text
-	.end	literal_prefix
+// 	.size	_KernelExceptionVector, . - _KernelExceptionVector
+// 	.text
+// 	.end	literal_prefix
 
-#endif /* XCHAL_HAVE_EXCEPTIONS */
+// #endif /* XCHAL_HAVE_EXCEPTIONS */
 

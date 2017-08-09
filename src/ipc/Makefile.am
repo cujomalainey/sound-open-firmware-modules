@@ -6,7 +6,8 @@ libipc_a_SOURCES = \
 	intel-ipc.c \
 	byt-ipc.c \
 	pmc-ipc.c \
-	dma-copy.c
+	dma-copy.c \
+	ring_buffer.c
 endif
 
 if BUILD_CHERRYTRAIL

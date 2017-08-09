@@ -89,7 +89,7 @@
 
 /* move to config.h */
 #define TRACE	1
-#define TRACEV	0
+#define TRACEV	1
 #define TRACEE	1
 
 void _trace_event(uint32_t event);
