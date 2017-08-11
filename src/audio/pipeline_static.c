@@ -45,13 +45,40 @@
 #include <reef/audio/component.h>
 #include <reef/audio/pipeline.h>
 
+
+/* 2 * 32 bit*/
+#define PLATFORM_INT_FRAME_SIZE		8
+/* 2 * 16 bit*/
+#define PLATFORM_HOST_FRAME_SIZE	4
+/* 2 * 24 (32) bit*/
+#define PLATFORM_DAI_FRAME_SIZE		8
+
+/* Platform Host DMA buffer config - these should align with DMA engine */
+#define PLAT_HOST_PERIOD_FRAMES	48	/* must be multiple of DMA burst size */
+#define PLAT_HOST_PERIODS	2	/* give enough latency for DMA refill */
+
+/* Platform Dev DMA buffer config - these should align with DMA engine */
+#define PLAT_DAI_PERIOD_FRAMES	48	/* must be multiple of DMA+DEV burst size */
+#define PLAT_DAI_PERIODS	2	/* give enough latency for DMA refill */
+#define PLAT_DAI_SCHED		1000 /* scheduling time in usecs */
+
+/* Platform internal buffer config - these should align with DMA engine */
+#define PLAT_INT_PERIOD_FRAMES	48	/* must be multiple of DMA+DEV burst size */
+#define PLAT_INT_PERIODS	2	/* give enough latency for DMA refill */
+
+/* default static pipeline SSP port - not used for dynamic pipes */
+#define PLATFORM_SSP_PORT	2
+
+/* default SSP stream format - need aligned with codec setting*/
+#define PLATFORM_SSP_STREAM_FORMAT	SOF_IPC_FRAME_S24_4LE
+
 /*
  * Static Buffer Convenience Constructors.
  */
-#define SPIPE_BUFFER(bid, bsize, ppreload) \
-	{.comp.id = bid, .size = bsize, .preload_count = ppreload}
-#define SPIPE_COMP_CONNECT(pid, source, bid, sink) \
-	{.pipeline_id = pid, .source_id = source, .buffer_id = bid, .sink_id = sink}
+#define SPIPE_BUFFER(bid, bsize) \
+	{.comp.id = bid, .size = bsize}
+#define SPIPE_COMP_CONNECT(source, sink) \
+	{.source_id = source, .sink_id = sink}
 
 /*
  * Static Component Convenience Constructors.
@@ -202,28 +229,28 @@ static struct scomps pipe2_scomps[] = {
  */
 static struct sof_ipc_buffer buffer0[] = {
 	/* B0 - LL Playback - PCM 0 Host0 -> Volume1 */
-	SPIPE_BUFFER(0, HOST_PERIOD_SIZE * 2, 1),
+	SPIPE_BUFFER(0, HOST_PERIOD_SIZE * 2),
 
 	/* B1 - LL Playback - PCM 1 - Host2 -> Volume3 */
-	SPIPE_BUFFER(1, HOST_PERIOD_SIZE * 2, 2),
+	SPIPE_BUFFER(1, HOST_PERIOD_SIZE * 2),
 
 	/* B2 Volume1 -> Mixer4 */
-	SPIPE_BUFFER(2, INT_PERIOD_SIZE * 1, 1),
+	SPIPE_BUFFER(2, INT_PERIOD_SIZE * 1),
 
 	/* B3  Volume3 -> Mixer4 */
-	SPIPE_BUFFER(3, INT_PERIOD_SIZE * 1, 1),
+	SPIPE_BUFFER(3, INT_PERIOD_SIZE * 1),
 
 	/* B4 Mixer4 -> Volume 5 */
-	SPIPE_BUFFER(4, INT_PERIOD_SIZE * 1, 1),
+	SPIPE_BUFFER(4, INT_PERIOD_SIZE * 1),
 
 	/* B5 - DAI Playback - Volume5 -> DAI6 */
-	SPIPE_BUFFER(5, DAI_PERIOD_SIZE * 2, 1),
+	SPIPE_BUFFER(5, DAI_PERIOD_SIZE * 2),
 
 	/* B6 - DAI Capture - DAI7 - > Volume8 */
-	SPIPE_BUFFER(6, DAI_PERIOD_SIZE * 2, 1),
+	SPIPE_BUFFER(6, DAI_PERIOD_SIZE * 2),
 
 	/* B7 - PCM0 - Capture LL - Volume8 -> Host9 */
-	SPIPE_BUFFER(7, HOST_PERIOD_SIZE * 1, 1),
+	SPIPE_BUFFER(7, HOST_PERIOD_SIZE * 1),
 };
 
 /*
@@ -231,13 +258,13 @@ static struct sof_ipc_buffer buffer0[] = {
  */
 static struct sof_ipc_buffer buffer1[] = {
 	/* B8 - Playback - PCM 3 - Host10 -> SRC11 */
-	SPIPE_BUFFER(8, HOST_PERIOD_SIZE * 16, 4),
+	SPIPE_BUFFER(8, HOST_PERIOD_SIZE * 16),
 
 	/* B9  SRC11 -> Volume12 */
-	SPIPE_BUFFER(9, INT_PERIOD_SIZE * 2, 1),
+	SPIPE_BUFFER(9, INT_PERIOD_SIZE * 2),
 
 	/* B10  Volume12 -> Mixer4 */
-	SPIPE_BUFFER(10, INT_PERIOD_SIZE * 2, 0),
+	SPIPE_BUFFER(10, INT_PERIOD_SIZE * 2),
 };
 
 /*
@@ -245,13 +272,13 @@ static struct sof_ipc_buffer buffer1[] = {
  */
 static struct sof_ipc_buffer buffer2[] = {
 	/* B11 - tone13 -> SRC14 */
-	SPIPE_BUFFER(11, HOST_PERIOD_SIZE * 16, 4),
+	SPIPE_BUFFER(11, HOST_PERIOD_SIZE * 16),
 
 	/* B12  SRC14 -> Volume15 */
-	SPIPE_BUFFER(12, INT_PERIOD_SIZE * 2, 0),
+	SPIPE_BUFFER(12, INT_PERIOD_SIZE * 2),
 
 	/* B13  Volume15 -> Mixer4 */
-	SPIPE_BUFFER(13, INT_PERIOD_SIZE * 2, 0),
+	SPIPE_BUFFER(13, INT_PERIOD_SIZE * 2),
 };
 
 /*
@@ -286,33 +313,33 @@ static struct sof_ipc_buffer buffer2[] = {
 
 /* pipeline 0 component/buffer connections */
 static struct sof_ipc_pipe_comp_connect c_connect0[] = {
-	SPIPE_COMP_CONNECT(0, 0, 0, 1), /* Host0 -> B0 ->  Volume1 */
-	SPIPE_COMP_CONNECT(0, 2, 1, 3), /* Host2 -> B1 ->  Volume3 */
-	SPIPE_COMP_CONNECT(0, 1, 2, 4), /* Volume1 -> B2 -> Mixer4 */
-	SPIPE_COMP_CONNECT(0, 3, 3, 4), /* Volume3 -> B3 -> Mixer4 */
-	SPIPE_COMP_CONNECT(0, 4, 5, 5), /* Mixer4 -> B4 -> Volume5 */
-	SPIPE_COMP_CONNECT(0, 5, 5, 6), /* Volume5 -> B5 -> DAI6 */
-	SPIPE_COMP_CONNECT(0, 7, 6, 8), /* DAI7 -> B6 -> Volume8 */
-	SPIPE_COMP_CONNECT(0, 8, 7, 9), /* Volume8 -> B7 -> host9 */
+	SPIPE_COMP_CONNECT(0, 1), /* Host0 -> B0 ->  Volume1 */
+	SPIPE_COMP_CONNECT(2, 3), /* Host2 -> B1 ->  Volume3 */
+	SPIPE_COMP_CONNECT(1, 4), /* Volume1 -> B2 -> Mixer4 */
+	SPIPE_COMP_CONNECT(3, 4), /* Volume3 -> B3 -> Mixer4 */
+	SPIPE_COMP_CONNECT(4, 5), /* Mixer4 -> B4 -> Volume5 */
+	SPIPE_COMP_CONNECT(5, 6), /* Volume5 -> B5 -> DAI6 */
+	SPIPE_COMP_CONNECT(7, 8), /* DAI7 -> B6 -> Volume8 */
+	SPIPE_COMP_CONNECT(8, 9), /* Volume8 -> B7 -> host9 */
 };
 
 /* pipeline 1 component/buffer connections */
 static struct sof_ipc_pipe_comp_connect c_connect1[] = {
-	SPIPE_COMP_CONNECT(1, 10, 8, 11), /* Host10 -> B8 ->  SRC11 */
-	SPIPE_COMP_CONNECT(1, 11, 9, 12), /* SRC11 -> B9 ->  Volume12 */
+	SPIPE_COMP_CONNECT(10, 11), /* Host10 -> B8 ->  SRC11 */
+	SPIPE_COMP_CONNECT(11, 12), /* SRC11 -> B9 ->  Volume12 */
 };
 
 /* pipeline 2 component/buffer connections */
 static struct sof_ipc_pipe_comp_connect c_connect2[] = {
-	SPIPE_COMP_CONNECT(2, 13, 11, 14), /* tone13 -> B11 ->  SRC14 */
-	SPIPE_COMP_CONNECT(2, 14, 12, 15), /* SRC14 -> B12 ->  Volume15 */
+	SPIPE_COMP_CONNECT(13, 14), /* tone13 -> B11 ->  SRC14 */
+	SPIPE_COMP_CONNECT(14, 15), /* SRC14 -> B12 ->  Volume15 */
 };
 
 /* pipeline connections to other pipelines */
-static struct sof_ipc_pipe_pipe_connect p_connect[] = {
+//static struct sof_ipc_pipe_pipe_connect p_connect[] = {
 //	SPIPE_PIPE_CONNECT(1, 12, 10, 0, 4), /* p1 volume12 -> B10 -> p0 Mixer4 */
 //	SPIPE_PIPE_CONNECT(2, 15, 13, 0, 4), /* p2 Volume15 -> B13 -> p0 Mixer4 */
-};
+//};
 
 /* the static pipelines */
 static struct spipe spipe[] = {
@@ -381,13 +408,14 @@ int init_static_pipeline(struct ipc *ipc)
 		}
 	}
 
+#if 0
 	/* connect the pipelines */
 	for (i = 0; i < ARRAY_SIZE(p_connect); i++) {
 		ret = ipc_pipe_connect(ipc, &p_connect[i]);
 		if (ret < 0)
 			goto error;
 	}
-
+#endif
 	/* pipelines now ready for params, prepare and cmds */
 	return 0;
 

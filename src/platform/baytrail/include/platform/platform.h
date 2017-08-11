@@ -38,12 +38,6 @@
 
 struct reef;
 
-/* default static pipeline SSP port - not used for dynamic pipes */
-#define PLATFORM_SSP_PORT	2
-
-/* default SSP stream format - need aligned with codec setting*/
-#define PLATFORM_SSP_STREAM_FORMAT	SOF_IPC_FRAME_S24_4LE
-
 /* IPC Interrupt */
 #define PLATFORM_IPC_INTERUPT	IRQ_NUM_EXT_IA
 
@@ -67,45 +61,17 @@ struct reef;
 #define PLATFORM_MAX_CHANNELS	4
 #define PLATFORM_MAX_STREAMS	5
 
-/* TODO: get this from IPC - 2 * 32 bit*/
-#define PLATFORM_INT_FRAME_SIZE		8
-/* TODO: get this from IPC - 2 * 16 bit*/
-#define PLATFORM_HOST_FRAME_SIZE	4
-/* TODO: get this from IPC - 2 * 24 (32) bit*/
-#define PLATFORM_DAI_FRAME_SIZE		8
-
-/* Platform Host DMA buffer config - these should align with DMA engine */
-#define PLAT_HOST_PERIOD_FRAMES	48	/* must be multiple of DMA burst size */
-#define PLAT_HOST_PERIODS	2	/* give enough latency for DMA refill */
-
-/* Platform Dev DMA buffer config - these should align with DMA engine */
-#define PLAT_DAI_PERIOD_FRAMES	48	/* must be multiple of DMA+DEV burst size */
-#define PLAT_DAI_PERIODS	2	/* give enough latency for DMA refill */
-#define PLAT_DAI_SCHED		1000 /* scheduling time in usecs */
-
-/* Platform internal buffer config - these should align with DMA engine */
-#define PLAT_INT_PERIOD_FRAMES	48	/* must be multiple of DMA+DEV burst size */
-#define PLAT_INT_PERIODS	2	/* give enough latency for DMA refill */
-
+/* clock source used by scheduler for deadline calculations */
 #define PLATFORM_SCHED_CLOCK	CLK_SSP
 
-#define PLATFORM_NUM_MMAP_POSN	10
-#define PLATFORM_NUM_MMAP_VOL	10
-
-/* DMA channel drain timeout in microseconds */
+/* DMA channel drain timeout in microseconds - TODO: caclulate based on topology */
 #define PLATFORM_DMA_TIMEOUT	1333
 
-/* IPC page data copy timeout */
-#define PLATFORM_IPC_DMA_TIMEOUT 2000
+/* DMA host transfer timeouts in microseconds */
+#define PLATFORM_HOST_DMA_TIMEOUT	50
 
 /* WorkQ window size in microseconds */
 #define PLATFORM_WORKQ_WINDOW	2000
-
-/* Host finish work schedule delay in microseconds */
-#define PLATFORM_HOST_FINISH_DELAY	100
-
-/* Host finish work(drain from host to dai) timeout in microseconds */
-#define PLATFORM_HOST_FINISH_TIMEOUT	50000
 
 /* Platform defined panic code */
 #define platform_panic(__x) \
