@@ -222,7 +222,7 @@ static int mixer_copy(struct comp_dev *dev)
 	for (i = 0; i < num_mix_sources; i++) {
 		if (sources[i]->avail < md->period_bytes) {
 			trace_mixer("xru");
-			tracev_value(source[i]->source->comp.id);
+			tracev_value(sources[i]->source->comp.id);
 			return 0;
 		}
 	}
@@ -231,7 +231,7 @@ static int mixer_copy(struct comp_dev *dev)
 	sink = list_first_item(&dev->bsink_list, struct comp_buffer, source_list);
 	if (sink->free < md->period_bytes) {
 		trace_mixer("xro");
-		tracev_value(sink[i]->sink->comp.id);
+		tracev_value(sink->sink->comp.id);
 		return 0;
 	}
 
