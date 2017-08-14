@@ -112,7 +112,9 @@ static uint8_t sregs_read[32] bulk_data;
 static uint8_t sregs_mod[32] bulk_data;
 static uint8_t sregs_late[32] bulk_data;
 uint32_t sregs[256] bulk_data;
-uint32_t aregs[XCHAL_NUM_AREGS] bulk_data;
+// TODO the following array should use XCHAL_NUM_AREGS to size
+// but it is currently pulling in the wrong define
+uint32_t aregs[32] bulk_data;
 static char remcomInBuffer[BUFMAX] bulk_data;
 static char remcomOutBuffer[BUFMAX] bulk_data;
 
