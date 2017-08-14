@@ -407,7 +407,7 @@ static void restore_sr(void)
 
 extern void *_xtos_exc_handler_table[];
 void fault_handler(void);
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
+// #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
 void handle_exception(void)
 {
