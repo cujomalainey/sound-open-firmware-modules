@@ -702,7 +702,8 @@ void flush_buffer()
 	for(int i = 0; i < DEBUG_BUFFER_SIZE/GDB_MSG_BUFFER_SIZE; i++)
 	{
 		int full_msg = 1;
-		for (int j = 0; j < GDB_MSG_BUFFER_SIZE; j++)
+		int j;
+		for (j = 0; j < GDB_MSG_BUFFER_SIZE; j++)
 		{
 			uint8_t data;
 			if (circ_buf_pop(&gdb_buffer_tx, &data) < 0)
@@ -713,6 +714,7 @@ void flush_buffer()
 			}
 			ipc_gdb.data[j] = data;
 		}
+		ipc_gdb.len = j;
 		if (ipc_queue_host_message(_ipc, SOF_IPC_GDB, &ipc_gdb,
 			sizeof(ipc_gdb), NULL, 0, NULL, NULL) < 0)
 		{
