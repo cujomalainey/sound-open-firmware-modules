@@ -120,7 +120,7 @@ static void host_dma_cb(void *data, uint32_t type, struct dma_sg_elem *next)
 	local_elem = list_first_item(&hd->config.elem_list,
 		struct dma_sg_elem, list);
 
-	trace_host("irq");
+	tracev_host("irq");
 
 	/* update buffer positions */
 	dma_buffer = hd->dma_buffer;
@@ -143,6 +143,7 @@ static void host_dma_cb(void *data, uint32_t type, struct dma_sg_elem *next)
 
 	/* new local period, update host buffer position blks */
 	hd->local_pos += local_elem->size;
+	dev->position += local_elem->size;
 
 	/* buffer overlap ? */
 	if (hd->local_pos >= hd->host_size)
@@ -150,14 +151,20 @@ static void host_dma_cb(void *data, uint32_t type, struct dma_sg_elem *next)
 
 	/* send IPC message to driver if needed */
 	hd->report_pos += local_elem->size;
+	hd->posn.host_posn += local_elem->size;
+
+	/* NO_IRQ mode if host_period_size == 0 */
 	if (dev->params.host_period_bytes != 0 &&
 		hd->report_pos >= dev->params.host_period_bytes) {
 		hd->report_pos = 0;
 		/* update for host side */
 		if (hd->host_pos) {
 			*hd->host_pos = hd->local_pos;
-			ipc_stream_send_notification(dev, &hd->posn);
 		}
+
+		/* send timestamps to host */
+		pipeline_get_timestamp(dev->pipeline, dev, &hd->posn);
+		ipc_stream_send_position(dev, &hd->posn);
 	}
 
 	/* update src and dest positions and check for overflow */
@@ -268,6 +275,9 @@ static struct comp_dev *host_new(struct sof_ipc_comp *comp)
 
 	/* set up callback */
 	dma_set_cb(hd->dma, hd->chan, DMA_IRQ_TYPE_LLIST, host_dma_cb, dev);
+
+	/* init posn data. TODO: other fields */
+	hd->posn.comp_id = comp->id;
 
 	return dev;
 
@@ -486,8 +496,7 @@ static int host_prepare(struct comp_dev *dev)
 		*hd->host_pos = 0;
 	hd->report_pos = 0;
 	hd->split_remaining = 0;
-
-	//dev->preload = PLAT_HOST_PERIODS;
+	dev->position = 0;
 
 	dev->state = COMP_STATE_PREPARE;
 	return 0;
@@ -502,6 +511,7 @@ static int host_pointer_reset(struct comp_dev *dev)
 		*hd->host_pos = 0;
 	hd->local_pos = 0;
 	hd->report_pos = 0;
+	dev->position = 0;
 
 	return 0;
 }
@@ -518,6 +528,17 @@ static int host_stop(struct comp_dev *dev)
 	comp_buffer_reset(dev);
 
 	dev->state = COMP_STATE_SETUP;
+	return 0;
+}
+
+static int host_position(struct comp_dev *dev,
+	struct sof_ipc_stream_posn *posn)
+{
+	struct host_data *hd = comp_get_drvdata(dev);
+
+	/* TODO: improve accuracy by adding current DMA position */
+	posn->host_posn = hd->local_pos;
+
 	return 0;
 }
 
@@ -615,7 +636,7 @@ static int host_copy(struct comp_dev *dev)
 	struct host_data *hd = comp_get_drvdata(dev);
 	struct sof_ipc_comp_config *config = COMP_GET_CONFIG(dev);
 
-	trace_host("cpy");
+	tracev_host("cpy");
 
 	if (dev->state != COMP_STATE_RUNNING)
 		return 0;
@@ -639,6 +660,7 @@ struct comp_driver comp_host = {
 		.prepare	= host_prepare,
 		.preload	= host_preload,
 		.host_buffer	= host_buffer,
+		.position	= host_position,
 	},
 };
 
