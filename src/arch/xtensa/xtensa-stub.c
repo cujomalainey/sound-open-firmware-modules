@@ -122,8 +122,15 @@ static const char hexchars[]="0123456789abcdef";
 extern void putDebugChar(char c);
 extern int getDebugChar(void);
 
-int strncmp (const char *s1, const char *s2, size_t n) {
-	return 0;
+// https://opensource.apple.com/source/Libc/Libc-167/gen.subproj/ppc.subproj/strncmp.c
+int strncmp (const char *s1, const char *s2, size_t n)
+{
+  for ( ; n > 0; s1++, s2++, --n)
+		if (*s1 != *s2)
+	    return ((*(unsigned char *)s1 < *(unsigned char *)s2) ? -1 : +1);
+		else if (*s1 == '\0')
+	    return 0;
+   return 0;
 }
 
 /* Convert ch from a hex digit to an int */
