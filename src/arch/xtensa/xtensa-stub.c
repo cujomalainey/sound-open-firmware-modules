@@ -460,7 +460,13 @@ void handle_exception(void)
 			if (hexToInt(&ptr, &addr))
 				sregs[DEBUG_PC] = addr;
 			goto out;
-
+		case 'g':		/* return the value of the CPU registers */
+		  mem2hex ((char *) aregs, remcomOutBuffer, sizeof(aregs));
+		  break;
+		case 'G':		/* set the value of the CPU registers - return OK */
+		  hex2mem (ptr, (char *) aregs, sizeof(aregs));
+		  strcpy (remcomOutBuffer, "OK");
+		  break;
 		case 'm':	  /* mAA..AA,LLLL  Read LLLL bytes at address AA..AA */
 			/* Try to read %x,%x.  */
 
