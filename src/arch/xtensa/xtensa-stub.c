@@ -94,7 +94,6 @@
 
 extern void putDebugChar(char c);	/* write a single character      */
 extern int getDebugChar(void);	/* read and return a single char */
-extern void print_ipc();
 
 /************************************************************************/
 /* BUFMAX defines the maximum number of characters in inbound/outbound buffers*/

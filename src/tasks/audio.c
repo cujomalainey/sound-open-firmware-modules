@@ -49,7 +49,7 @@
 struct audio_data {
 	struct pipeline *p;
 };
-extern void print_ipc();
+
 int do_task(struct reef *reef)
 {
 #ifdef STATIC_PIPE
