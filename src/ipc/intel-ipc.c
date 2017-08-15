@@ -734,9 +734,10 @@ int getDebugChar(void)
 
 void putDebugChar(char c)
 {
-	if(circ_buf_push(&gdb_buffer_tx, c))
+	if(circ_buf_push(&gdb_buffer_tx, c)){
 		flush_buffer();
-	circ_buf_push(&gdb_buffer_tx, c);
+		circ_buf_push(&gdb_buffer_tx, c);
+	}
 }
 
 /*
