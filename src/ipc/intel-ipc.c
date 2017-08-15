@@ -69,35 +69,22 @@ struct ipc *_ipc;
 CIRCBUF_DEF(gdb_buffer_rx, DEBUG_BUFFER_SIZE);
 CIRCBUF_DEF(gdb_buffer_tx, DEBUG_BUFFER_SIZE);
 
-void print_ipc(void)
-{
-	void* p = NULL;
-	trace_ipc("TT0");
-  	trace_value((int)&p);
-	trace_value((int)_ipc); // WHY IS THIS POINTER CHANGING??!?!?!?!?!?!??!?!
-	trace_value((int)&_ipc);
-	trace_value(_ipc->host_pending);
-}
-
 static inline struct sof_ipc_hdr *mailbox_validate(void)
 {
 	struct sof_ipc_hdr *hdr = _ipc->comp_data;
-	trace_ipc("ABC");
+
 	/* read component values from the inbox */
 	mailbox_inbox_read(hdr, 0, sizeof(*hdr));
-	trace_ipc("ABB");
+
 	/* validate component header */
 	if (hdr->size > SOF_IPC_MSG_MAX_SIZE) {
 		trace_ipc_error("ebg");
 		return NULL;
 	}
-	trace_ipc("ABA");
+
 	/* read rest of component data */
-	trace_value(hdr->cmd);
-	trace_value(hdr->size);
-	trace_value(hdr->size - sizeof(*hdr));
 	mailbox_inbox_read(hdr + 1, sizeof(*hdr), hdr->size - sizeof(*hdr));
-	trace_ipc("ABZ");
+
 	return hdr;
 }
 
@@ -683,7 +670,7 @@ int ipc_gdb_copy_to_buffer(uint32_t header)
 {
 	struct sof_ipc_gdb_dsp_msg *ipc_gdb = _ipc->comp_data;
 
-	trace_ipc("YDS");
+	trace_ipc("Gcb");
 	for (int i = 0; i < ipc_gdb->len; i++)
 	{
 		if (circ_buf_push(&gdb_buffer_rx, ipc_gdb->data[i]) < 0)
@@ -698,6 +685,7 @@ int ipc_gdb_copy_to_buffer(uint32_t header)
 
 void flush_buffer()
 {
+	trace_ipc("Gfb");
 	struct sof_ipc_gdb_dsp_msg ipc_gdb;
 	for(int i = 0; i < DEBUG_BUFFER_SIZE/GDB_MSG_BUFFER_SIZE; i++)
 	{
@@ -736,7 +724,6 @@ extern void irq_handler(void *arg);
 int getDebugChar(void)
 {
 	uint8_t data;
-	print_ipc();
 	while(circ_buf_pop(&gdb_buffer_rx, &data))
 	{
 		irq_handler(NULL);
@@ -760,9 +747,7 @@ int ipc_cmd(void)
 {
 	struct sof_ipc_hdr *hdr;
 	uint32_t type;
-	trace_ipc("BLD");
 	hdr = mailbox_validate();
-	trace_ipc("BLC");
 	if (hdr == NULL) {
 		trace_ipc_error("hdr");
 		return -EINVAL;
@@ -792,7 +777,6 @@ int ipc_cmd(void)
 		trace_value(type);
 		return -EINVAL;
 	}
-	trace_ipc("BLB");
 }
 
 /* locks held by caller */
@@ -815,7 +799,7 @@ int ipc_stream_send_notification(struct comp_dev *cdev,
 	uint32_t header;
 
 	header = SOF_IPC_GLB_STREAM_MSG | SOF_IPC_STREAM_POSITION;
-trace_value(header);
+
 	return ipc_queue_host_message(_ipc, header, posn, sizeof(*posn),
 		NULL, 0, NULL, NULL);
 }

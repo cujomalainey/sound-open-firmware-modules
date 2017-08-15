@@ -84,7 +84,6 @@
 #include <string.h>
 #include <signal.h>
 #include <stdint.h>
-#include <reef/trace.h>
 #include <xtensa/xtruntime.h>
 #include "xtensa-defs.h"
 
@@ -120,8 +119,6 @@ static char remcomOutBuffer[BUFMAX] bulk_data;
 
 static const char hexchars[]="0123456789abcdef";
 
-#define trace_ipc(__e)	trace_event(TRACE_CLASS_IPC, __e)
-
 extern void putDebugChar(char c);
 extern int getDebugChar(void);
 
@@ -151,7 +148,6 @@ char *getpacket(void)
 	unsigned char xmitcsum;
 	int count;
 	char ch;
-	trace_ipc("GGp");
 	while (1) {
 		/* wait around for the start character, ignore all other characters */
 		while ((ch = getDebugChar ()) != '$')
@@ -207,7 +203,6 @@ static void putpacket(char *buffer)
 	unsigned char checksum;
 	int count;
 	unsigned char ch;
-	trace_ipc("PGp");
 	/*  $<packet info>#<checksum>. */
 	do {
 		putDebugChar('$');
@@ -240,7 +235,6 @@ static char *mem2hex(const void *mem_, char *buf, int count)
 {
 	const unsigned char *mem = mem_;
 	unsigned char ch;
-	trace_ipc("m2h");
 	mem_err = 0;
 	while (count-- > 0) {
 #ifdef __XTENSA__
@@ -272,7 +266,6 @@ static char *hex2mem(const char *buf, void *mem_, int count)
 	char *mem = mem_;
 	int i;
 	unsigned char ch;
-	trace_ipc("h2m");
 	mem_err = 0;
 	for (i=0; i<count; i++) {
 		ch = hex(*buf++) << 4;
@@ -310,7 +303,6 @@ static int hexToInt(char **ptr, int *intValue)
 	int hexValue;
 
 	*intValue = 0;
-	trace_ipc("hti");
 	while (**ptr) {
 		hexValue = hex(**ptr);
 		if (hexValue < 0)
@@ -399,7 +391,6 @@ static void write_sr(int sr)
 static void restore_sr(void)
 {
 	int i;
-	trace_ipc("rts");
 	for (i = 0; i < 256; ++i)
 		if (is_mod(i) && !is_late(i))
 			write_sr(i);
@@ -429,19 +420,11 @@ void handle_exception(void)
 		EXCCAUSE_STORE_PROHIBITED,
 	};
 	_xtos_handler handler[sizeof(cause) / sizeof(cause[0])];
-	trace_ipc("hex");
 	for (i = 0; i < ARRAY_SIZE(cause); ++i) {
 		handler[i] = _xtos_exc_handler_table[cause[i]];
 		_xtos_exc_handler_table[cause[i]] = fault_handler;
 	}
 #endif
-	trace_value((int)&stack);
-	trace_value((int)&sregs_read);
-	trace_value((int)&sregs_mod);
-	trace_value((int)&sregs_late);
-	trace_value((int)&sregs);
-	trace_value((int)&aregs);
-	print_ipc();
 	memcpy(sregs_read, sregs_late, sizeof(sregs_read));
 	memset(sregs_mod, 0, sizeof(sregs_mod));
 
@@ -453,7 +436,6 @@ void handle_exception(void)
 		sregs[ICOUNTLEVEL] = 0;
 		mark_mod(ICOUNTLEVEL);
 	}
-	print_ipc();
 	putpacket(stop_status);
 
 	while (1) {
@@ -629,7 +611,6 @@ void init_debug_entry();
 
 void init_gdbstub(void)
 {
-	trace_ipc("ini");
 	mark_late(LBEG);
 	mark_late(LEND);
 	mark_late(LCOUNT);

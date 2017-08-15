@@ -90,7 +90,7 @@ void irq_handler(void *arg)
 {
 	uint32_t isr;
 
-	// tracev_ipc("IRQ");
+	tracev_ipc("IRQ");
 
 	/* Interrupt arrived, check src */
 	isr = shim_read(SHIM_ISRD);
