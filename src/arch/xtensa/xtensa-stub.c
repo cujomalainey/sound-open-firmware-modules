@@ -535,7 +535,7 @@ void handle_exception(void)
 
 		case 'q': /* generic query */
 			if (strncmp(ptr, "Supported", 9) == 0)
-				strcpy(remcomOutBuffer, "PacketSize=100"); /* must match BUFMAX */
+				strcpy(remcomOutBuffer, "PacketSize=256"); /* must match BUFMAX */
 			break;
 
 		case 's': /* s[AA..AA] Single step */
