@@ -156,10 +156,6 @@ init_debug_entry:
 	entry	a1, 16
 	movi	a2, DebugExceptionEntry
 	wsr	a2, DEBUG_EXCSAVE
-	// movi a2, 0x8000003F
-	// wsr a2, DBREAKC0
-	// movi a2, _ipc
-	// wsr a2, DBREAKA0
 	isync
 	retw
 
@@ -167,7 +163,6 @@ init_debug_entry:
 	.align	4
 breakpoint:
 	entry	a1, 16 // rotate out designated amount of registers
-	//(commenting this out stops the memory overwritting)
 initial_breakpoint:
 	_break	0, 0 // enter debug priority and jump to debug vector
 	retw
