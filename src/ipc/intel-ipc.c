@@ -738,6 +738,7 @@ int ipc_gdb_copy_to_buffer(uint32_t header)
 	}
 	return 0;
 }
+extern void irq_handler(void *arg);
 
 void flush_buffer()
 {
@@ -759,13 +760,14 @@ void flush_buffer()
 			ipc_gdb.data[j] = data;
 		}
 		ipc_gdb.len = j;
-		if (ipc_queue_host_message(_ipc, SOF_IPC_GDB, &ipc_gdb,
+		while(ipc_queue_host_message(_ipc, SOF_IPC_GDB, &ipc_gdb,
 			sizeof(ipc_gdb), NULL, 0, NULL, NULL) < 0)
 		{
-			// queue might be full, process it and try again
+			// there is probably a better way to do this (timers or
+			// something, but we are in the dbg context so it makes
+			// little difference right now)
+			irq_handler(NULL);
 			ipc_process_msg_queue();
-			ipc_queue_host_message(_ipc, SOF_IPC_GDB, &ipc_gdb,
-				sizeof(ipc_gdb), NULL, 0, NULL, NULL);
 		}
 		if (!full_msg)
 		{
@@ -775,7 +777,6 @@ void flush_buffer()
 	}
 }
 
-extern void irq_handler(void *arg);
 
 int getDebugChar(void)
 {
