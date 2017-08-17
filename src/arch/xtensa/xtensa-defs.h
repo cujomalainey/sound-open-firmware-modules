@@ -12,4 +12,7 @@
 #define DEBUG_EXCSAVE	(EXCSAVE + XCHAL_DEBUGLEVEL)
 #define DEBUG_PS	(EPS + XCHAL_DEBUGLEVEL)
 
+#if(DEBUG_PC != (176 + 6) || DEBUG_EXCSAVE != (208 + 6) || DEBUG_PS != (192 + 6))
+ #error "Wrong header pulled in"
+#endif
 #endif /* XTENSA_DEFS_H */
