@@ -62,7 +62,6 @@ struct dai_data {
 	struct dai *dai;
 	struct dma *dma;
 	uint32_t period_bytes;
-	uint32_t sample_width;
 
 	uint32_t last_bytes;    /* the last bytes(<period size) it copies. */
 	uint32_t dai_pos_blks;	/* position in bytes (nearest block) */
@@ -228,8 +227,7 @@ static void dai_free(struct comp_dev *dev)
 }
 
 /* set component audio SSP and DMA configuration */
-static int dai_playback_params(struct comp_dev *dev,
-	struct stream_params *params)
+static int dai_playback_params(struct comp_dev *dev)
 {
 	struct dai_data *dd = comp_get_drvdata(dev);
 	struct dma_sg_config *config = &dd->config;
@@ -293,8 +291,7 @@ err_unwind:
 	return -ENOMEM;
 }
 
-static int dai_capture_params(struct comp_dev *dev,
-	struct stream_params *params)
+static int dai_capture_params(struct comp_dev *dev)
 {
 	struct dai_data *dd = comp_get_drvdata(dev);
 	struct dma_sg_config *config = &dd->config;
@@ -356,12 +353,10 @@ err_unwind:
 	return -ENOMEM;
 }
 
-static int dai_params(struct comp_dev *dev,
-	struct stream_params *host_params)
+static int dai_params(struct comp_dev *dev)
 {
 	struct dai_data *dd = comp_get_drvdata(dev);
 	struct comp_buffer *dma_buffer;
-	struct sof_ipc_comp_config *config = COMP_GET_CONFIG(dev);
 
 	trace_dai("par");
 
@@ -371,24 +366,22 @@ static int dai_params(struct comp_dev *dev,
 		return -EINVAL;
 	}
 
-	comp_install_params(dev, host_params);
-
 	/* calculate period size based on config */
-	config->frame_size = dd->sample_width * dev->params.channels;
-	dd->period_bytes = config->frames * config->frame_size;
+	dev->frame_bytes = comp_frame_bytes(dev);
+	dd->period_bytes = dev->frames * dev->frame_bytes;
 
 	if (dev->params.direction == SOF_IPC_STREAM_PLAYBACK) {
 		dma_buffer = list_first_item(&dev->bsource_list,
 			struct comp_buffer, sink_list);
 		dma_buffer->r_ptr = dma_buffer->addr;
 
-		return dai_playback_params(dev, host_params);
+		return dai_playback_params(dev);
 	} else {
 		dma_buffer = list_first_item(&dev->bsink_list,
 			struct comp_buffer, source_list);
 		dma_buffer->w_ptr = dma_buffer->addr;
 
-		return dai_capture_params(dev, host_params);
+		return dai_capture_params(dev);
 	}
 }
 
@@ -544,26 +537,23 @@ static int dai_position(struct comp_dev *dev, struct sof_ipc_stream_posn *posn)
 	return 0;
 }
 
-static int dai_config(struct comp_dev *dev, struct dai_config *dai_config)
+static int dai_config(struct comp_dev *dev, struct sof_ipc_dai_config *config)
 {
-	struct dai_data *dd = comp_get_drvdata(dev);
-
-	switch (dai_config->type) {
-	case DAI_TYPE_INTEL_SSP:
-		switch (dai_config->ssp->frame_width) {
-		case 16:
-			dd->sample_width = 2;
-			break;
-		case 17 ... 32:
-			dd->sample_width = 4;
-			break;
-		default:
-			trace_dai_error("eft");
-			return -EINVAL;
-		}
+	/* calc frame bytes */
+	switch (config->sample_valid_bits) {
+	case 16:
+		dev->frame_bytes = 2 * config->num_slots;
+		break;
+	case 17 ... 32:
+		dev->frame_bytes = 4 * config->num_slots;
 		break;
 	default:
-		dd->sample_width = 2;
+		break;
+	}
+
+	if (dev->frame_bytes == 0) {
+		trace_dai_error("de1");
+		return -EINVAL;
 	}
 
 	return 0;

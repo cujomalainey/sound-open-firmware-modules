@@ -102,9 +102,6 @@ static void vol_s16_to_s32(struct comp_dev *dev, struct comp_buffer *sink,
 		dest[i] = (int32_t)src[i] * cd->volume[0];
 		dest[i + 1] = (int32_t)src[i + 1] * cd->volume[1];
 	}
-
-	source->r_ptr = src + i;
-	sink->w_ptr = dest + i;
 }
 
 /* copy and scale volume from 32 bit source buffer to 16 bit dest buffer */
@@ -120,9 +117,6 @@ static void vol_s32_to_s16(struct comp_dev *dev, struct comp_buffer *sink,
 		dest[i] = (((int32_t)src[i] >> 16) * cd->volume[0]) >> 16;
 		dest[i + 1] = (((int32_t)src[i + 1] >> 16) * cd->volume[1]) >> 16;
 	}
-
-	source->r_ptr = src + i;
-	sink->w_ptr = dest + i;
 }
 
 /* copy and scale volume from 32 bit source buffer to 32 bit dest buffer */
@@ -138,9 +132,6 @@ static void vol_s32_to_s32(struct comp_dev *dev, struct comp_buffer *sink,
 		dest[i] = ((int64_t)src[i] * cd->volume[0]) >> 16;
 		dest[i + 1] = ((int64_t)src[i + 1] * cd->volume[1]) >> 16;
 	}
-
-	source->r_ptr = src + i;
-	sink->w_ptr = dest + i;
 }
 
 /* copy and scale volume from 16 bit source buffer to 16 bit dest buffer */
@@ -157,9 +148,6 @@ static void vol_s16_to_s16(struct comp_dev *dev, struct comp_buffer *sink,
 		dest[i] = ((int32_t)src[i] * cd->volume[0]) >> 16;
 		dest[i + 1] = ((int32_t)src[i + 1] * cd->volume[1]) >> 16;
 	}
-
-	source->r_ptr = src + i;
-	sink->w_ptr = dest + i;
 }
 
 /* copy and scale volume from 16 bit source buffer to 24 bit on 32 bit boundary dest buffer */
@@ -175,9 +163,6 @@ static void vol_s16_to_s24(struct comp_dev *dev, struct comp_buffer *sink,
 		dest[i] = ((int32_t)src[i] * cd->volume[0]) >> 8;
 		dest[i + 1] = ((int32_t)src[i + 1] * cd->volume[1]) >> 8;
 	}
-
-	source->r_ptr = src + i;
-	sink->w_ptr = dest + i;
 }
 
 /* copy and scale volume from 16 bit source buffer to 24 bit on 32 bit boundary dest buffer */
@@ -195,9 +180,6 @@ static void vol_s24_to_s16(struct comp_dev *dev, struct comp_buffer *sink,
 		dest[i + 1] = (int16_t)((((int32_t)src[i + 1] >> 8) *
 			cd->volume[1]) >> 16);
 	}
-
-	source->r_ptr = src + i;
-	sink->w_ptr = dest + i;
 }
 
 /* copy and scale volume from 32 bit source buffer to 24 bit on 32 bit boundary dest buffer */
@@ -213,9 +195,6 @@ static void vol_s32_to_s24(struct comp_dev *dev, struct comp_buffer *sink,
 		dest[i] = ((int64_t)src[i] * cd->volume[0]) >> 24;
 		dest[i + 1] = ((int64_t)src[i + 1] * cd->volume[1]) >> 24;
 	}
-
-	source->r_ptr = src + i;
-	sink->w_ptr = dest + i;
 }
 
 /* copy and scale volume from 16 bit source buffer to 24 bit on 32 bit boundary dest buffer */
@@ -233,9 +212,6 @@ static void vol_s24_to_s32(struct comp_dev *dev, struct comp_buffer *sink,
 		dest[i + 1] = (int32_t)(((int64_t)src[i + 1] *
 			cd->volume[1]) >> 8);
 	}
-
-	source->r_ptr = src + i;
-	sink->w_ptr = dest + i;
 }
 
 /* map of source and sink buffer formats to volume function */
@@ -370,13 +346,12 @@ static void volume_free(struct comp_dev *dev)
 }
 
 /*
- * Set volume component audio stream paramters.
+ * Set volume component audio stream paramters - All done in prepare() since
+ * wee need to know source and sink component params.
  */
-static int volume_params(struct comp_dev *dev, struct stream_params *host_params)
+static int volume_params(struct comp_dev *dev)
 {
 	trace_volume("par");
-
-	comp_install_params(dev, host_params);
 
 	return 0;
 }
@@ -480,7 +455,6 @@ static int volume_copy(struct comp_dev *dev)
 {
 	struct comp_data *cd = comp_get_drvdata(dev);
 	struct comp_buffer *sink, *source;
-	struct sof_ipc_comp_config *config = COMP_GET_CONFIG(dev);
 	uint32_t copy_bytes;
 
 	tracev_volume("cpy");
@@ -488,11 +462,6 @@ static int volume_copy(struct comp_dev *dev)
 	/* volume components will only ever have 1 source and 1 sink buffer */
 	source = list_first_item(&dev->bsource_list, struct comp_buffer, sink_list);
 	sink = list_first_item(&dev->bsink_list, struct comp_buffer, source_list);
-
-#if 0
-	trace_value((uint32_t)(source->r_ptr - source->addr));
-	trace_value((uint32_t)(sink->w_ptr - sink->addr));
-#endif
 
 	/* get max number of bytes that can be copied */
 	copy_bytes = comp_buffer_get_copy_bytes(dev, source, sink);
@@ -505,13 +474,13 @@ static int volume_copy(struct comp_dev *dev)
 	}
 
 	/* copy and scale volume */
-	cd->scale_vol(dev, sink, source, config->frames);
+	cd->scale_vol(dev, sink, source, dev->frames);
 
 	/* calc new free and available */
 	comp_update_buffer_produce(sink, cd->sink_period_bytes);
 	comp_update_buffer_consume(source, cd->source_period_bytes);
 
-	return config->frames;
+	return dev->frames;
 }
 
 /*
@@ -522,7 +491,6 @@ static int volume_prepare(struct comp_dev *dev)
 {
 	struct comp_data *cd = comp_get_drvdata(dev);
 	struct comp_buffer *sinkb, *sourceb;
-	struct sof_ipc_comp_config *config = COMP_GET_CONFIG(dev);
 	struct sof_ipc_comp_config *sconfig;
 	int i;
 
@@ -533,14 +501,13 @@ static int volume_prepare(struct comp_dev *dev)
 	sinkb = list_first_item(&dev->bsink_list, struct comp_buffer, source_list);
 
 	/* get source data format */
-	switch (sourceb->source->comp.id) {
+	switch (sourceb->source->comp.type) {
 	case SOF_COMP_HOST:
 	case SOF_COMP_SG_HOST:
-		/* source format come from IPC params */
+		/* source format comes from IPC params */
 		cd->source_format = sourceb->source->params.frame_fmt;
-		cd->source_period_bytes = config->frames *
-			sourceb->source->params.channels *
-			sourceb->source->params.sample_size;
+		cd->source_period_bytes = dev->frames *
+			comp_frame_bytes(sourceb->source);
 		break;
 	case SOF_COMP_DAI:
 	case SOF_COMP_SG_DAI:
@@ -548,20 +515,19 @@ static int volume_prepare(struct comp_dev *dev)
 		/* source format comes from DAI/comp config */
 		sconfig = COMP_GET_CONFIG(sourceb->source);
 		cd->source_format = sconfig->frame_fmt;
-		cd->source_period_bytes = config->frames *
-			sconfig->channels * sconfig->frame_size;
+		cd->source_period_bytes = dev->frames *
+			sourceb->source->frame_bytes;
 		break;
 	}
 
 	/* get sink data format */
-	switch (sinkb->sink->comp.id) {
+	switch (sinkb->sink->comp.type) {
 	case SOF_COMP_HOST:
 	case SOF_COMP_SG_HOST:
 		/* sink format come from IPC params */
 		cd->sink_format = sinkb->sink->params.frame_fmt;
-		cd->sink_period_bytes = config->frames *
-			sinkb->sink->params.channels *
-			sinkb->sink->params.sample_size;
+		cd->sink_period_bytes = dev->frames *
+			comp_frame_bytes(sinkb->sink);
 		break;
 	case SOF_COMP_DAI:
 	case SOF_COMP_SG_DAI:
@@ -569,9 +535,21 @@ static int volume_prepare(struct comp_dev *dev)
 		/* sink format comes from DAI/comp config */
 		sconfig = COMP_GET_CONFIG(sinkb->sink);
 		cd->sink_format = sconfig->frame_fmt;
-		cd->sink_period_bytes = config->frames *
-			sconfig->channels * sconfig->frame_size;
+		cd->sink_period_bytes = dev->frames *
+			sinkb->sink->frame_bytes;
 		break;
+	}
+
+	dev->frame_bytes = cd->sink_period_bytes;
+
+	/* validate */
+	if (cd->sink_period_bytes == 0) {
+		trace_volume_error("vp1");
+		return -EINVAL;
+	}
+	if (cd->source_period_bytes == 0) {
+		trace_volume_error("vp2");
+		return -EINVAL;
 	}
 
 	/* map the volume function for source and sink buffers */
@@ -600,6 +578,17 @@ found:
 
 static int volume_preload(struct comp_dev *dev)
 {
+	struct comp_data *cd = comp_get_drvdata(dev);
+	struct comp_buffer *sink;
+
+	trace_volume("PrL");
+
+	/* make sure there is enough space in sink buffer */
+	sink = list_first_item(&dev->bsink_list, struct comp_buffer,
+		source_list);
+	if (sink->free < cd->sink_period_bytes)
+		return 0;
+
 	return volume_copy(dev);
 }
 

@@ -206,20 +206,23 @@ static int ipc_stream_pcm_params(uint32_t stream)
 {
 	struct intel_ipc_data *iipc = ipc_get_drvdata(_ipc);
 	struct sof_ipc_pcm_params *pcm_params = _ipc->comp_data;
-	struct stream_params params;
 	struct ipc_comp_dev *pcm_dev;
 	struct comp_dev *cd;
 	int err;
 
 	trace_ipc("SAl");
 
-	params.type = STREAM_TYPE_PCM;
-	params.pcm = pcm_params;
-
 	/* get the pcm_dev */
 	pcm_dev = ipc_get_comp(_ipc, pcm_params->comp_id);
 	if (pcm_dev == NULL) {
 		trace_ipc_error("eAC");
+		trace_value(pcm_params->comp_id);
+		return -EINVAL;
+	}
+
+	/* sanity check comp */
+	if (pcm_dev->cd->pipeline == NULL) {
+		trace_ipc_error("eA1");
 		trace_value(pcm_params->comp_id);
 		return -EINVAL;
 	}
@@ -244,7 +247,7 @@ static int ipc_stream_pcm_params(uint32_t stream)
 	}
 
 	/* configure pipeline audio params */
-	err = pipeline_params(pcm_dev->cd->pipeline, pcm_dev->cd, &params);
+	err = pipeline_params(pcm_dev->cd->pipeline, pcm_dev->cd, pcm_params);
 	if (err < 0) {
 		trace_ipc_error("eAa");
 		goto error;
@@ -406,39 +409,32 @@ static int ipc_glb_stream_message(uint32_t header)
  * DAI IPC Operations.
  */
 
-static int ipc_dai_ssp_config(uint32_t header)
+static int ipc_dai_config(uint32_t header)
 {
-	struct sof_ipc_dai_ssp_params *ssp = _ipc->comp_data;
-	struct dai_config dai_config;
+	struct sof_ipc_dai_config *config = _ipc->comp_data;
 	struct dai *dai;
 	int ret;
 
 	trace_ipc("DsF");
 
-	/* TODO: set type in topology */
-	dai_config.type = DAI_TYPE_INTEL_SSP;
-	dai_config.ssp = ssp;
-
-	/* TODO: allow topology to define SSP clock type */
-	dai_config.ssp->clk_id = SSP_CLK_EXT;
-
 	/* get DAI */
-	dai = dai_get(SOF_DAI_INTEL_SSP, ssp->ssp_id);
+	dai = dai_get(config->type, config->id);
 	if (dai == NULL) {
 		trace_ipc_error("eDi");
-		trace_value(ssp->ssp_id);
+		trace_value(config->type);
+		trace_value(config->id);
 		return -ENODEV;
 	}
 
 	/* configure DAI */
-	ret = dai_set_config(dai, &dai_config);
+	ret = dai_set_config(dai, config);
 	if (ret < 0) {
 		trace_ipc_error("eDC");
 		return ret;
 	}
 
-	/* now send params to all components who use that DAI */
-	return ipc_comp_dai_config(_ipc, &dai_config);
+	/* now send params to all DAI components who use that physical DAI */
+	return ipc_comp_dai_config(_ipc, config);
 }
 
 static int ipc_glb_dai_message(uint32_t header)
@@ -446,12 +442,10 @@ static int ipc_glb_dai_message(uint32_t header)
 	uint32_t cmd = (header & SOF_CMD_TYPE_MASK) >> SOF_CMD_TYPE_SHIFT;
 
 	switch (cmd) {
-	case iCS(SOF_IPC_COMP_SSP_CONFIG):
-		return ipc_dai_ssp_config(header);
-	case iCS(SOF_IPC_COMP_LOOPBACK):
+	case iCS(SOF_IPC_DAI_CONFIG):
+		return ipc_dai_config(header);
+	case iCS(SOF_IPC_DAI_LOOPBACK):
 		//return ipc_comp_set_value(header, COMP_CMD_LOOPBACK);
-	case iCS(SOF_IPC_COMP_HDA_CONFIG):
-	case iCS(SOF_IPC_COMP_DMIC_CONFIG):
 	default:
 		trace_ipc_error("eDc");
 		trace_value(header);
@@ -634,11 +628,15 @@ static int ipc_glb_tplg_comp_new(uint32_t header)
 	/* register component */
 	ret = ipc_comp_new(_ipc, comp);
 	if (ret < 0) {
-		trace_ipc_error("etc");
+		trace_ipc_error("cn1");
 		return ret;
 	}
 
 	/* write component values to the outbox */
+	reply.rhdr.hdr.size = sizeof(reply);
+	reply.rhdr.hdr.cmd = header;
+	reply.rhdr.error = 0;
+	reply.offset = 0; /* TODO: set this up for mmaped components */
 	mailbox_outbox_write(0, &reply, sizeof(reply));
 	return 0;
 }
@@ -646,19 +644,47 @@ static int ipc_glb_tplg_comp_new(uint32_t header)
 static int ipc_glb_tplg_buffer_new(uint32_t header)
 {
 	struct sof_ipc_buffer *ipc_buffer = _ipc->comp_data;
+	struct sof_ipc_comp_reply reply;
+	int ret;
 
 	trace_ipc("Ibn");
 
-	return ipc_buffer_new(_ipc, ipc_buffer);
+	ret = ipc_buffer_new(_ipc, ipc_buffer);
+	if (ret < 0) {
+		trace_ipc_error("bn1");
+		return ret;
+	}
+
+	/* write component values to the outbox */
+	reply.rhdr.hdr.size = sizeof(reply);
+	reply.rhdr.hdr.cmd = header;
+	reply.rhdr.error = 0;
+	reply.offset = 0; /* TODO: set this up for mmaped components */
+	mailbox_outbox_write(0, &reply, sizeof(reply));
+	return 0;
 }
 
 static int ipc_glb_tplg_pipe_new(uint32_t header)
 {
 	struct sof_ipc_pipe_new *ipc_pipeline = _ipc->comp_data;
+	struct sof_ipc_comp_reply reply;
+	int ret;
 
 	trace_ipc("Ipn");
 
-	return ipc_pipeline_new(_ipc, ipc_pipeline);
+	ret = ipc_pipeline_new(_ipc, ipc_pipeline);
+	if (ret < 0) {
+		trace_ipc_error("pn1");
+		return ret;
+	}
+
+	/* write component values to the outbox */
+	reply.rhdr.hdr.size = sizeof(reply);
+	reply.rhdr.hdr.cmd = header;
+	reply.rhdr.error = 0;
+	reply.offset = 0; /* TODO: set this up for mmaped components */
+	mailbox_outbox_write(0, &reply, sizeof(reply));
+	return 0;
 }
 
 static int ipc_glb_tplg_pipe_complete(uint32_t header)
