@@ -32,7 +32,7 @@
 #define __INCLUDE_INTEL_IPC_H__
 
 #include <stdint.h>
-
+#include <reef/wait.h>
 /* private data for IPC */
 struct intel_ipc_data {
 	/* DMA */
@@ -45,5 +45,5 @@ struct intel_ipc_data {
 };
 
 int ipc_cmd(void);
-
+void ipc_flush_gdb_tx_buffer();
 #endif

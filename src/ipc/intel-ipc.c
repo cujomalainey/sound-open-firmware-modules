@@ -62,10 +62,17 @@
 #define iGS(x) ((x >> SOF_GLB_TYPE_SHIFT) & 0xf)
 #define iCS(x) ((x >> SOF_CMD_TYPE_SHIFT) & 0xfff)
 
-#define DEBUG_BUFFER_SIZE (4*GDB_MSG_BUFFER_SIZE)
+#define DEBUG_BUFFER_FACTOR 4
+#define DEBUG_BUFFER_SIZE (DEBUG_BUFFER_FACTOR*GDB_MSG_BUFFER_SIZE)
 
 /* IPC context - shared with platform IPC driver */
 struct ipc *_ipc;
+
+/**
+ * User buffers for rx and tx so we don't have put a bunch of overhead on each
+ * packet sent. Memory usage should be negligible (currently 64 byte buffers
+ * each)
+ */
 CIRCBUF_DEF(gdb_buffer_rx, DEBUG_BUFFER_SIZE);
 CIRCBUF_DEF(gdb_buffer_tx, DEBUG_BUFFER_SIZE);
 
@@ -748,6 +755,9 @@ static int ipc_glb_tplg_message(uint32_t header)
 	}
 }
 
+/**
+ * Copy incoming messages to ring buffer to be handled later
+ */
 int ipc_gdb_copy_to_buffer(uint32_t header)
 {
 	struct sof_ipc_gdb_dsp_msg *ipc_gdb = _ipc->comp_data;
@@ -766,11 +776,15 @@ int ipc_gdb_copy_to_buffer(uint32_t header)
 }
 extern void irq_handler(void *arg);
 
-void flush_buffer()
+/**
+ * Flush the tx buffer to the host mailbox
+ */
+void ipc_flush_gdb_tx_buffer()
 {
 	trace_ipc("Gfb");
 	struct sof_ipc_gdb_dsp_msg ipc_gdb;
-	for(int i = 0; i < DEBUG_BUFFER_SIZE/GDB_MSG_BUFFER_SIZE; i++)
+	// buffer size is defined as a multiple of the message size
+	for(int i = 0; i < DEBUG_BUFFER_FACTOR; i++)
 	{
 		int full_msg = 1;
 		int j;
@@ -792,7 +806,11 @@ void flush_buffer()
 			// there is probably a better way to do this (timers or
 			// something, but we are in the dbg context so it makes
 			// little difference right now)
+
+			// call the handler to see if the host dealt with any of the messages
+			// yet to free up space in the mailbox
 			irq_handler(NULL);
+			// process anything received or sent
 			ipc_process_msg_queue();
 		}
 		if (!full_msg)
@@ -803,22 +821,30 @@ void flush_buffer()
 	}
 }
 
-
+/**
+ * Busy wait on command line messages for dbg commands
+ */
 int getDebugChar(void)
 {
 	uint8_t data;
+	// keep trying the buffer until we get something out of it
 	while(circ_buf_pop(&gdb_buffer_rx, &data))
 	{
+		// check for new interrupts from messages
 		irq_handler(NULL);
+		// process anything that came in
 		ipc_process_msg_queue();
 	}
 	return data;
 }	/* read and return a single char */
 
+/**
+ * Put a value into the tx buffer, flush as necessary
+ */
 void putDebugChar(char c)
 {
 	if(circ_buf_push(&gdb_buffer_tx, c)){
-		flush_buffer();
+		ipc_flush_gdb_tx_buffer();
 		circ_buf_push(&gdb_buffer_tx, c);
 	}
 }
@@ -826,7 +852,6 @@ void putDebugChar(char c)
 /*
  * Global IPC Operations.
  */
-
 int ipc_cmd(void)
 {
 	struct sof_ipc_hdr *hdr;

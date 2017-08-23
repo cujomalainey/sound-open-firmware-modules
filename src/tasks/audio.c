@@ -76,14 +76,16 @@ int do_task(struct reef *reef)
 #endif
 	/* let host know DSP boot is complete */
 	platform_boot_complete(0);
+
+	/* init the stub */
 	init_gdbstub();
 	breakpoint();
+
 	/* main audio IPC processing loop */
 	while (1) {
 
 		/* sleep until next IPC or DMA */
 		wait_for_interrupt(0);
-
 		/* now process any IPC messages from host */
 		ipc_process_msg_queue();
 	}

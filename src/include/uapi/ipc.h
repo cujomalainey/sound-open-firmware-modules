@@ -663,6 +663,9 @@ struct sof_ipc_pipe_comp_connect {
 
 /*
  * GDB
+ *
+ * The following struct and define MUST match what is defined in the kernel
+ * otherwise the protocol will become corrupt
  */
 
 #define GDB_MSG_BUFFER_SIZE 16
