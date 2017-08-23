@@ -81,6 +81,14 @@ void buffer_free(struct comp_buffer *buffer);
 static inline void comp_update_buffer_produce(struct comp_buffer *buffer,
 	uint32_t bytes)
 {
+	/* complain loudly if component tries to overrun buffer
+	 * components MUST check for free space first !! */
+	if (bytes > buffer->free) {
+		trace_buffer_error("Xxo");
+		trace_value(buffer->ipc_buffer.comp.id);
+		return;
+	}
+
 	buffer->w_ptr += bytes;
 
 	/* check for pointer wrap */
@@ -99,14 +107,22 @@ static inline void comp_update_buffer_produce(struct comp_buffer *buffer,
 	buffer->free = buffer->size - buffer->avail;
 
 	tracev_buffer("pro");
-	tracev_value(buffer->avail);
-	tracev_value(buffer->free);
+	tracev_value((buffer->avail << 12) | buffer->free);
+	tracev_value((buffer->ipc_buffer.comp.id << 16) | buffer->size);
 }
 
 /* called by a component after consuming data from this buffer */
 static inline void comp_update_buffer_consume(struct comp_buffer *buffer,
 	uint32_t bytes)
 {
+	/* complain loudly if component tries to underrun buffer
+	 * components MUST check for avail space first !! */
+	if (buffer->avail < bytes) {
+		trace_buffer_error("Xxu");
+		trace_value(buffer->ipc_buffer.comp.id);
+		return;
+	}
+
 	buffer->r_ptr += bytes;
 
 	/* check for pointer wrap */
@@ -125,8 +141,8 @@ static inline void comp_update_buffer_consume(struct comp_buffer *buffer,
 	buffer->free = buffer->size - buffer->avail;
 
 	tracev_buffer("con");
-	tracev_value(buffer->avail);
-	tracev_value(buffer->free);
+	tracev_value((buffer->avail << 12) | buffer->free);
+	tracev_value((buffer->ipc_buffer.comp.id << 16) | buffer->size);
 }
 
 /* get the max number of bytes that can be copied between sink and source */

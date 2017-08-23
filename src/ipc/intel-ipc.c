@@ -213,6 +213,7 @@ static int ipc_stream_pcm_params(uint32_t stream)
 {
 	struct intel_ipc_data *iipc = ipc_get_drvdata(_ipc);
 	struct sof_ipc_pcm_params *pcm_params = _ipc->comp_data;
+	struct sof_ipc_pcm_params_reply reply;
 	struct ipc_comp_dev *pcm_dev;
 	struct comp_dev *cd;
 	int err;
@@ -268,6 +269,13 @@ static int ipc_stream_pcm_params(uint32_t stream)
 	}
 
 
+	/* write component values to the outbox */
+	reply.rhdr.hdr.size = sizeof(reply);
+	reply.rhdr.hdr.cmd = stream;
+	reply.rhdr.error = 0;
+	reply.comp_id = pcm_params->comp_id;
+	reply.posn_offset = 0; /* TODO: set this up for mmaped components */
+	mailbox_outbox_write(0, &reply, sizeof(reply));
 	return 0;
 
 error:
@@ -334,6 +342,20 @@ int ipc_stream_send_position(struct comp_dev *cdev,
 	uint32_t header;
 
 	header = SOF_IPC_GLB_STREAM_MSG | SOF_IPC_STREAM_POSITION;
+	posn->rhdr.hdr.cmd = header;
+	posn->rhdr.hdr.size = sizeof(*posn);
+
+	return ipc_queue_host_message(_ipc, header, posn, sizeof(*posn),
+		NULL, 0, NULL, NULL);
+}
+
+/* send stream position TODO: send compound message  */
+int ipc_stream_send_xrun(struct comp_dev *cdev,
+	struct sof_ipc_stream_posn *posn)
+{
+	uint32_t header;
+
+	header = SOF_IPC_GLB_STREAM_MSG | SOF_IPC_STREAM_TRIG_XRUN;
 	posn->rhdr.hdr.cmd = header;
 	posn->rhdr.hdr.size = sizeof(*posn);
 
