@@ -805,6 +805,8 @@ void ipc_flush_gdb_tx_buffer()
 {
 	trace_ipc("Gfb");
 	struct sof_ipc_gdb_dsp_msg ipc_gdb;
+	ipc_gdb.hdr.size = sizeof(ipc_gdb);
+	ipc_gdb.hdr.cmd = SOF_IPC_GDB;
 	// buffer size is defined as a multiple of the message size
 	for(int i = 0; i < DEBUG_BUFFER_FACTOR; i++)
 	{
