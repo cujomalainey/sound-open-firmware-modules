@@ -153,7 +153,7 @@ fault_handler:
 	.global init_debug_entry
 	.align	4
 init_debug_entry:
-	entry	a1, 16
+	entry	a1, 16 //This might need to be 32 as this system has 32 AREGS
 	movi	a2, DebugExceptionEntry
 	wsr	a2, DEBUG_EXCSAVE
 	isync
@@ -162,7 +162,7 @@ init_debug_entry:
 	.global breakpoint
 	.align	4
 breakpoint:
-	entry	a1, 16 // rotate out designated amount of registers
+	entry	a1, 16 //This might need to be 32 as this system has 32 AREGS
 initial_breakpoint:
-	_break	0, 0 // enter debug priority and jump to debug vector
+	_break	0, 0
 	retw

@@ -465,8 +465,9 @@ void handle_exception(void)
 		  hex2mem (ptr, (char *) aregs, sizeof(aregs));
 		  strcpy (remcomOutBuffer, "OK");
 		  break;
+		// acknowledge but ignore multi-threading command to appease gdb
 		case 'H':
-			strcpy(remcomOutBuffer, "OK");
+			strcpy(remcomOutBuffer, "E00");
 			break;
 		case 'm':	  /* mAA..AA,LLLL  Read LLLL bytes at address AA..AA */
 			/* Try to read %x,%x.  */
