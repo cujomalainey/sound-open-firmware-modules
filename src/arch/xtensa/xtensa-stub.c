@@ -80,7 +80,6 @@
  * $m0,10#2a               +$00010203040506070809101112131415#42
  *
  ****************************************************************************/
-#if 1
 #include <string.h>
 #include <signal.h>
 #include <stdint.h>
@@ -642,4 +641,3 @@ void init_gdbstub(void)
 	init_debug_entry();
 #endif
 }
-#endif
