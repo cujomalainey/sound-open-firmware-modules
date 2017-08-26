@@ -85,6 +85,7 @@
 #include <signal.h>
 #include <stdint.h>
 #include <xtensa/xtruntime.h>
+#include <reef/intel-ipc.h>
 #include "xtensa-defs.h"
 
 /************************************************************************
@@ -203,7 +204,6 @@ retry:
 }
 
 /* send the packet in buffer.  */
-extern void flush_buffer();
 static void putpacket(char *buffer)
 {
 	unsigned char checksum;
@@ -224,7 +224,7 @@ static void putpacket(char *buffer)
 		putDebugChar('#');
 		putDebugChar(hexchars[checksum >> 4]);
 		putDebugChar(hexchars[checksum & 0xf]);
-		flush_buffer();
+		ipc_flush_gdb_tx_buffer();
 	} while (getDebugChar() != '+');
 }
 
@@ -404,7 +404,6 @@ static void restore_sr(void)
 
 extern void *_xtos_exc_handler_table[];
 void fault_handler(void);
-// #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
 void handle_exception(void)
 {
