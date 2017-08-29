@@ -494,15 +494,32 @@ void handle_exception(void)
 			}
 			break;
 
+		/**
+		 * GDB requests the wrong indices's which causes the stub to produce
+		 * bad values. A lot of features are broken because the registers are
+		 * incorrectly mapped.
+		 */
 		case 'p': /* pAA..AA read register number AA..AA */
 			if (hexToInt(&ptr, &addr)) {
-				if (addr < 0x10) { /* read address register in the current window */
-					mem2hex(aregs + addr, remcomOutBuffer, 4);
-				} else if (addr == 0x20) { /* read PC */
+				if (addr == 0x20) { /* read PC */
 					mem2hex(sregs + DEBUG_PC, remcomOutBuffer, 4);
-				} else if (addr >= 0x100 && addr < 0x100 + XCHAL_NUM_AREGS) { /* read address register by absolute index */
-					mem2hex(aregs + ((addr - windowbase) & 0xff), remcomOutBuffer, 4);
-				} else if (addr >= 0x200 && addr < 0x300) { /* read special register */
+				} else if (addr == 0x2a) { /* read WINDOWBASE */
+					sregs[PS] = sregs[PS] & ~(1<<4);
+					mem2hex(sregs + PS, remcomOutBuffer, 4);
+				} else if (addr == 0x26) { /* read WINDOWBASE */
+					read_sr(WINDOWBASE);
+					mem2hex(sregs + WINDOWBASE, remcomOutBuffer, 4);
+				} else if (addr == 0x27) { /* read WINDOWSTART */
+					read_sr(WINDOWSTART);
+					mem2hex(sregs + WINDOWSTART, remcomOutBuffer, 4);
+				} else if (addr < 113) { /* read special register */
+					addr &= 0xff;
+					read_sr(addr);
+					mem2hex(sregs + addr, remcomOutBuffer, 4);
+				} else if (addr >= 113 && addr < 145) { /* read address register in the current window */
+					addr -= 113;
+					mem2hex(aregs + addr, remcomOutBuffer, 4);
+				} else if (addr < 159) { /* read special register */
 					addr &= 0xff;
 					read_sr(addr);
 					mem2hex(sregs + addr, remcomOutBuffer, 4);
@@ -518,7 +535,7 @@ void handle_exception(void)
 			if (hexToInt(&ptr, &addr) && *(ptr++) == '=') {
 				int ok = 1;
 
-				if (addr < 0x10) {
+				if (addr < 0x20) {
 					hex2mem(ptr, aregs + addr, 4);
 				} else if (addr == 0x20) {
 					hex2mem(ptr, sregs + DEBUG_PC, 4);
@@ -551,6 +568,9 @@ void handle_exception(void)
 			sregs[ICOUNTLEVEL] = XCHAL_DEBUGLEVEL;
 			mark_mod(ICOUNTLEVEL);
 			goto out;
+
+		case 'v':
+			break;
 
 		case 'Z': /* insert HW breakpoint*/
 			switch (*ptr++) {
